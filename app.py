@@ -968,6 +968,3 @@ if st.button("Ask AI Analyst"):
             st.markdown(answer)
 
 st.divider()
-st.caption(
-    "Built as a Data-to-Insight Agent: upload structured data → generate EDA → visualize trends → build personas/segment comparisons → detect anomalies/risk → produce AI-grounded recommendations."
-)
