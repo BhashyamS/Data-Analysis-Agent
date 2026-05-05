@@ -234,5 +234,3 @@ The system follows a **two-layer architecture**:
 ## 👤 Author
 
 Srija Bhashyam
-* Make this **shorter (1-page version for submission)**
-* Or tailor it **exactly to the recruiter rubric** 👍
