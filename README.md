@@ -1,7 +1,3 @@
-Here’s a clean, recruiter-ready **README** you can copy directly into your GitHub:
-
----
-
 # 📊 AI Data-to-Insight Agent
 
 🔗 **Live App:** [https://data-analysis-agent-dyfrwg3dryqw7eo2ycbry6.streamlit.app/](https://data-analysis-agent-dyfrwg3dryqw7eo2ycbry6.streamlit.app/)
