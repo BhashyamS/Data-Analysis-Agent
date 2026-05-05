@@ -200,6 +200,113 @@ def build_strategy_recommendations(df: pd.DataFrame) -> list:
         recs.append(("Analytics Team", "Use the filters and segment comparison tool to identify the strongest behavioral differences before taking action."))
     return recs[:3]
 
+
+def build_theoretical_use_cases(df: pd.DataFrame) -> list:
+    """Create business-facing use case recommendations from observed dashboard trends."""
+    use_cases = []
+
+    night_rate = None
+    high_risk_rate = None
+    high_addiction_rate = None
+    top_risk_platform = None
+    top_persona = None
+    avg_sleep_high = None
+    avg_sleep_low = None
+
+    if "night_usage" in df.columns:
+        night_rate = pd.to_numeric(df["night_usage"], errors="coerce").eq(1).mean() * 100
+
+    if "risk_category" in df.columns:
+        high_risk_rate = df["risk_category"].astype(str).eq("High Risk").mean() * 100
+
+    if "addiction_level" in df.columns:
+        high_addiction_rate = df["addiction_level"].astype(str).str.lower().eq("high").mean() * 100
+
+    if {"primary_platform", "risk_category"}.issubset(df.columns):
+        risk_by_platform = (
+            df.assign(high_risk=df["risk_category"].astype(str).eq("High Risk").astype(int))
+            .groupby("primary_platform")["high_risk"]
+            .mean()
+            .mul(100)
+            .sort_values(ascending=False)
+        )
+        if not risk_by_platform.empty:
+            top_risk_platform = (str(risk_by_platform.index[0]), float(risk_by_platform.iloc[0]))
+
+    if "behavior_persona" in df.columns:
+        persona_counts = df["behavior_persona"].astype(str).value_counts(normalize=True).mul(100)
+        if not persona_counts.empty:
+            top_persona = (str(persona_counts.index[0]), float(persona_counts.iloc[0]))
+
+    if {"addiction_level", "screen_time_before_sleep"}.issubset(df.columns):
+        sleep_by_addiction = df.groupby("addiction_level")["screen_time_before_sleep"].mean()
+        if "High" in sleep_by_addiction.index:
+            avg_sleep_high = float(sleep_by_addiction.loc["High"])
+        if "Low" in sleep_by_addiction.index:
+            avg_sleep_low = float(sleep_by_addiction.loc["Low"])
+
+    wellness_trends = []
+    wellness_actions = []
+    if night_rate is not None:
+        wellness_trends.append(f"Night usage appears in {night_rate:.1f}% of the filtered records.")
+        if night_rate >= 40:
+            wellness_actions.append("Test bedtime nudges or quiet-hour reminders for users active at night.")
+    if high_risk_rate is not None:
+        wellness_trends.append(f"The calculated high-risk segment represents {high_risk_rate:.1f}% of the filtered population.")
+        if high_risk_rate >= 20:
+            wellness_actions.append("Create a targeted digital wellness flow for high-risk users, such as weekly usage summaries or optional screen-time limits.")
+    if avg_sleep_high is not None and avg_sleep_low is not None:
+        wellness_trends.append(f"High-addiction users average {avg_sleep_high:.1f} minutes before-sleep screen time compared with {avg_sleep_low:.1f} minutes for low-addiction users.")
+        wellness_actions.append("Prioritize sleep-focused messaging where bedtime screen time is highest.")
+    if not wellness_trends:
+        wellness_trends.append("Use the risk radar, night usage chart, and screen-time charts to identify wellness-related behavior patterns.")
+    if not wellness_actions:
+        wellness_actions.append("Monitor night usage, screen time before sleep, and risk category movement before launching interventions.")
+
+    marketing_trends = []
+    marketing_actions = []
+    if top_risk_platform:
+        marketing_trends.append(f"{top_risk_platform[0]} shows the highest calculated high-risk share at {top_risk_platform[1]:.1f}% among platforms in the filtered data.")
+        marketing_actions.append(f"Review {top_risk_platform[0]} campaigns carefully and avoid over-targeting users already flagged as high risk.")
+    if top_persona:
+        marketing_trends.append(f"The largest behavioral persona is {top_persona[0]}, representing {top_persona[1]:.1f}% of filtered records.")
+        marketing_actions.append(f"Design content strategies around the {top_persona[0]} persona while keeping engagement goals balanced with user well-being.")
+    if high_addiction_rate is not None:
+        marketing_trends.append(f"High addiction level accounts for {high_addiction_rate:.1f}% of the filtered records.")
+        marketing_actions.append("Prioritize moderate-risk, high-engagement segments for campaigns instead of pushing more engagement to high-risk users.")
+    if not marketing_trends:
+        marketing_trends.append("Use platform, purpose, and persona charts to identify audience segments with meaningful engagement differences.")
+    if not marketing_actions:
+        marketing_actions.append("Use segment comparison to pick audiences with strong engagement but lower risk signals.")
+
+    product_trends = []
+    product_actions = []
+    if high_risk_rate is not None:
+        product_trends.append(f"High-risk users make up {high_risk_rate:.1f}% of the selected segment.")
+    if night_rate is not None:
+        product_trends.append(f"Night usage rate is {night_rate:.1f}% in the selected segment.")
+    product_actions.extend([
+        "Add optional break reminders, cooldown prompts, or weekly usage recaps for users with high risk signals.",
+        "A/B test intentional-use features, such as session goals or 'take a break' prompts, before rolling them out broadly."
+    ])
+
+    strategy_trends = []
+    strategy_actions = []
+    if top_risk_platform:
+        strategy_trends.append(f"Platform-level risk analysis highlights {top_risk_platform[0]} as a priority segment.")
+    if top_persona:
+        strategy_trends.append(f"Persona segmentation shows {top_persona[0]} as the largest audience group.")
+    strategy_actions.extend([
+        "Use the Segment Comparison tool to compare two groups before deciding where to invest resources.",
+        "Track these KPIs over time to move from descriptive analytics into forecasting and intervention measurement."
+    ])
+
+    use_cases.append(("Wellness & Digital Health", wellness_trends, wellness_actions))
+    use_cases.append(("Marketing & Audience Strategy", marketing_trends, marketing_actions))
+    use_cases.append(("Product / UX Design", product_trends or ["Risk, session, and night-usage charts highlight where product friction may help."], product_actions))
+    use_cases.append(("Business Strategy", strategy_trends or ["Segment-level charts show where behavior differs across audiences."], strategy_actions))
+    return use_cases
+
 def make_eda_context(profile, kpi_summary, chart_summaries, anomaly_df, missing_table):
     anomaly_summary = (
         anomaly_df.to_string(index=False) if not anomaly_df.empty else "No major z-score anomalies detected."
@@ -262,12 +369,12 @@ with st.sidebar:
     st.write("3. App generates KPIs, charts, EDA summaries, and anomalies")
     st.write("4. Gemini answers only from those EDA outputs")
     st.divider()
-    st.write("Best demo: use the 1M-row Gen Z social media usage dataset.")
+    st.write("Use a structured dataset with numeric and categorical columns for the best dashboard experience.")
 
 uploaded_file = st.file_uploader("Upload a CSV or Excel dataset", type=["csv", "xlsx", "xls"])
 
 if uploaded_file is None:
-    st.info("Upload a dataset to begin. For the recruiter demo, use the heavier Gen Z social media usage dataset.")
+    st.info("Upload a dataset to begin.")
     st.stop()
 
 try:
@@ -527,10 +634,37 @@ with creative_tab4:
         strategy_summary_lines.append(f"{audience}: {recommendation}")
     chart_summaries.append("Rule-based strategy recommendation cards:\n" + "\n".join(strategy_summary_lines))
 
+
+# -----------------------------
+# Theoretical use cases from observed trends
+# -----------------------------
+st.subheader("4. Theoretical Use Cases & Recommendations")
+st.caption("These recommendations translate the dashboard's observed EDA trends into business actions for different teams.")
+
+use_cases = build_theoretical_use_cases(filtered_df)
+use_case_summary_lines = []
+uc_cols = st.columns(2)
+for idx, (team, observed_trends, recommended_actions) in enumerate(use_cases):
+    with uc_cols[idx % 2]:
+        with st.container(border=True):
+            st.markdown(f"### {team}")
+            st.markdown("**Observed dashboard trends**")
+            for trend in observed_trends[:3]:
+                st.write(f"• {trend}")
+            st.markdown("**Recommended actions**")
+            for action in recommended_actions[:3]:
+                st.write(f"• {action}")
+    use_case_summary_lines.append(
+        f"{team} observed trends: " + " | ".join(observed_trends[:3]) +
+        "\nRecommended actions: " + " | ".join(recommended_actions[:3])
+    )
+
+chart_summaries.append("Theoretical use case recommendations based on observed dashboard trends:\n" + "\n\n".join(use_case_summary_lines))
+
 # -----------------------------
 # EDA visual insights
 # -----------------------------
-st.subheader("4. Trend & Segment Dashboard")
+st.subheader("5. Trend & Segment Dashboard")
 st.caption("These charts generate the analysis layer that the AI report and chatbot use as context.")
 
 # chart_summaries already includes creative analytics outputs.
@@ -767,7 +901,7 @@ with tab5:
 # -----------------------------
 # Anomaly scan
 # -----------------------------
-st.subheader("5. Anomaly & Risk Detection")
+st.subheader("6. Anomaly & Risk Detection")
 if anomaly_df.empty:
     st.success("No major z-score anomalies detected in numeric columns.")
 else:
@@ -806,7 +940,7 @@ with st.expander("View AI Grounding Context"):
 # -----------------------------
 # AI report
 # -----------------------------
-st.subheader("6. AI-Generated Executive Insight Report")
+st.subheader("7. AI-Generated Executive Insight Report")
 if st.button("Generate AI Insights", type="primary"):
     with st.spinner("Generating AI business report from EDA outputs..."):
         report = generate_ai_text(make_report_prompt(eda_context))
@@ -816,7 +950,7 @@ if st.button("Generate AI Insights", type="primary"):
 # -----------------------------
 # AI chatbot
 # -----------------------------
-st.subheader("7. Ask the AI Analyst")
+st.subheader("8. Ask the AI Analyst")
 st.caption("Ask questions about the dashboard. The chatbot is grounded in the generated KPIs, EDA summaries, charts, and anomaly scan.")
 
 example_questions = [
