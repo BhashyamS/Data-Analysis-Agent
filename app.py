@@ -9,10 +9,7 @@ from google import genai
 st.set_page_config(page_title="AI Data-to-Insight Agent", page_icon="📊", layout="wide")
 
 st.title("📊 AI Data-to-Insight Agent")
-st.caption(
-    "Upload CSV/Excel data, generate an interactive EDA dashboard, detect risks/anomalies, "
-    "and ask an AI analyst chatbot grounded in the dashboard outputs."
-)
+
 
 # -----------------------------
 # Helpers
