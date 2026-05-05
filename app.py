@@ -257,7 +257,7 @@ User Question:
 # -----------------------------
 with st.sidebar:
     st.header("How it works")
-    st.write("1. Upload a heavier CSV or Excel dataset")
+    st.write("1. Upload a CSV or Excel dataset")
     st.write("2. Apply filters to explore segments")
     st.write("3. App generates KPIs, charts, EDA summaries, and anomalies")
     st.write("4. Gemini answers only from those EDA outputs")
