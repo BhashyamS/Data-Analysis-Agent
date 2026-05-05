@@ -2,6 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 from google import genai
 
@@ -129,6 +130,76 @@ def add_risk_features(df: pd.DataFrame) -> pd.DataFrame:
         )
     return df
 
+
+
+def add_persona_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Create simple behavioral personas when the expected social-media columns exist."""
+    df = df.copy()
+    needed = {"daily_usage_hours", "num_platforms_used", "night_usage", "screen_time_before_sleep"}
+    if not needed.issubset(df.columns):
+        return df
+
+    usage = pd.to_numeric(df["daily_usage_hours"], errors="coerce").fillna(0)
+    platforms = pd.to_numeric(df["num_platforms_used"], errors="coerce").fillna(0)
+    sleep = pd.to_numeric(df["screen_time_before_sleep"], errors="coerce").fillna(0)
+    night = pd.to_numeric(df["night_usage"], errors="coerce").fillna(0)
+
+    conditions = [
+        (night == 1) & (sleep >= sleep.quantile(0.60)),
+        (platforms >= platforms.quantile(0.75)),
+        (usage >= usage.quantile(0.75)),
+        (usage <= usage.quantile(0.25)) & (night == 0),
+    ]
+    choices = [
+        "Night Scrollers",
+        "Platform Switchers",
+        "Heavy Engagement Users",
+        "Balanced Low-Risk Users",
+    ]
+    df["behavior_persona"] = np.select(conditions, choices, default="Moderate Everyday Users")
+    return df
+
+def segment_metrics(df: pd.DataFrame) -> dict:
+    """Reusable metrics for comparison cards and AI grounding."""
+    metrics = {"records": len(df)}
+    if len(df) == 0:
+        return metrics
+    if "daily_usage_hours" in df.columns:
+        metrics["avg_daily_usage_hours"] = pd.to_numeric(df["daily_usage_hours"], errors="coerce").mean()
+    if "mental_health_score" in df.columns:
+        metrics["avg_mental_health_score"] = pd.to_numeric(df["mental_health_score"], errors="coerce").mean()
+    if "screen_time_before_sleep" in df.columns:
+        metrics["avg_screen_time_before_sleep"] = pd.to_numeric(df["screen_time_before_sleep"], errors="coerce").mean()
+    if "night_usage" in df.columns:
+        metrics["night_usage_rate_%"] = pd.to_numeric(df["night_usage"], errors="coerce").eq(1).mean() * 100
+    if "addiction_level" in df.columns:
+        metrics["high_addiction_rate_%"] = df["addiction_level"].astype(str).str.lower().eq("high").mean() * 100
+    if "risk_category" in df.columns:
+        metrics["high_risk_rate_%"] = df["risk_category"].astype(str).eq("High Risk").mean() * 100
+    if "risk_score" in df.columns:
+        metrics["avg_risk_score"] = pd.to_numeric(df["risk_score"], errors="coerce").mean()
+    return metrics
+
+def build_strategy_recommendations(df: pd.DataFrame) -> list:
+    """Rule-based recommendations that make the dashboard feel more productized."""
+    recs = []
+    if "night_usage" in df.columns and pd.to_numeric(df["night_usage"], errors="coerce").eq(1).mean() > 0.45:
+        recs.append(("Wellness Team", "Launch a night-usage awareness campaign and test bedtime reminder nudges."))
+    if "risk_category" in df.columns and df["risk_category"].astype(str).eq("High Risk").mean() > 0.25:
+        recs.append(("Product Team", "Add optional screen-time controls, daily recap notifications, or soft usage limits for high-risk segments."))
+    if "primary_platform" in df.columns and "risk_category" in df.columns:
+        top_platform = (
+            df.assign(high_risk=df["risk_category"].astype(str).eq("High Risk").astype(int))
+            .groupby("primary_platform")["high_risk"]
+            .mean()
+            .sort_values(ascending=False)
+        )
+        if not top_platform.empty:
+            recs.append(("Marketing / Content Team", f"Prioritize deeper review of {top_platform.index[0]} users because they show the highest calculated high-risk share."))
+    if not recs:
+        recs.append(("Analytics Team", "Use the filters and segment comparison tool to identify the strongest behavioral differences before taking action."))
+    return recs[:3]
+
 def make_eda_context(profile, kpi_summary, chart_summaries, anomaly_df, missing_table):
     anomaly_summary = (
         anomaly_df.to_string(index=False) if not anomaly_df.empty else "No major z-score anomalies detected."
@@ -205,7 +276,7 @@ except Exception as e:
     st.error(f"Could not read file: {e}")
     st.stop()
 
-df = add_risk_features(df)
+df = add_persona_features(add_risk_features(df))
 numeric_cols, categorical_cols, date_cols = detect_columns(df)
 profile = build_profile(df, numeric_cols, categorical_cols, date_cols)
 
@@ -215,7 +286,7 @@ profile = build_profile(df, numeric_cols, categorical_cols, date_cols)
 st.sidebar.header("Dashboard Filters")
 filtered_df = df.copy()
 filterable_cols = [
-    c for c in ["country", "gender", "primary_platform", "purpose", "addiction_level", "risk_category"]
+    c for c in ["country", "gender", "primary_platform", "purpose", "addiction_level", "risk_category", "behavior_persona"]
     if c in filtered_df.columns
 ]
 
@@ -302,13 +373,167 @@ missing_table["missing_%"] = (missing_table["missing_values"] / len(filtered_df)
 with st.expander("Missing Values by Column"):
     st.dataframe(missing_table, use_container_width=True)
 
+
+# Prepare shared EDA summary list before any charts are rendered.
+chart_summaries = []
+
+# -----------------------------
+# Creative analytics layer
+# -----------------------------
+st.subheader("3. Creative Analytics Layer")
+st.caption("This section turns the EDA into a decision-support product: risk radar, personas, segment comparison, and strategy recommendations.")
+
+creative_tab1, creative_tab2, creative_tab3, creative_tab4 = st.tabs([
+    "Digital Wellness Radar",
+    "Behavior Personas",
+    "Segment Comparison",
+    "Strategy Cards",
+])
+
+with creative_tab1:
+    radar_group = None
+    if "primary_platform" in filtered_df.columns:
+        radar_group = st.selectbox("Compare risk radar by", ["Overall"] + sorted(filtered_df["primary_platform"].dropna().astype(str).unique().tolist()))
+    else:
+        radar_group = "Overall"
+
+    radar_df = filtered_df if radar_group == "Overall" else filtered_df[filtered_df["primary_platform"].astype(str) == radar_group]
+    radar_metrics = segment_metrics(radar_df)
+
+    radar_labels = []
+    radar_values = []
+    if "avg_daily_usage_hours" in radar_metrics:
+        radar_labels.append("Usage Intensity")
+        radar_values.append(min((radar_metrics["avg_daily_usage_hours"] / 10) * 100, 100))
+    if "avg_screen_time_before_sleep" in radar_metrics:
+        radar_labels.append("Bedtime Screen Time")
+        radar_values.append(min((radar_metrics["avg_screen_time_before_sleep"] / 120) * 100, 100))
+    if "night_usage_rate_%" in radar_metrics:
+        radar_labels.append("Night Usage")
+        radar_values.append(radar_metrics["night_usage_rate_%"])
+    if "high_addiction_rate_%" in radar_metrics:
+        radar_labels.append("High Addiction")
+        radar_values.append(radar_metrics["high_addiction_rate_%"])
+    if "high_risk_rate_%" in radar_metrics:
+        radar_labels.append("High Risk")
+        radar_values.append(radar_metrics["high_risk_rate_%"])
+
+    if radar_labels:
+        fig = go.Figure()
+        fig.add_trace(go.Scatterpolar(
+            r=radar_values + [radar_values[0]],
+            theta=radar_labels + [radar_labels[0]],
+            fill="toself",
+            name=str(radar_group),
+        ))
+        fig.update_layout(
+            title=f"Digital Wellness Risk Radar: {radar_group}",
+            polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
+            showlegend=False,
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        st.caption("The radar normalizes key behavior signals to a 0-100 scale so risk patterns are easier to compare.")
+        chart_summaries.append(f"Digital wellness risk radar for {radar_group}: " + str({k: round(v, 2) if isinstance(v, float) else v for k, v in radar_metrics.items()}))
+    else:
+        st.info("Risk radar appears when usage, night behavior, addiction, or risk columns are available.")
+
+with creative_tab2:
+    if "behavior_persona" in filtered_df.columns:
+        persona_counts = value_counts_summary(filtered_df, "behavior_persona", 10)
+        fig = px.bar(
+            persona_counts,
+            x="behavior_persona",
+            y="percentage",
+            text="percentage",
+            title="Behavior Persona Distribution",
+        )
+        fig.update_traces(texttemplate="%{text:.1f}%", textposition="outside")
+        st.plotly_chart(fig, use_container_width=True)
+
+        persona_cols = st.columns(min(5, len(persona_counts)))
+        for idx, row in persona_counts.head(5).iterrows():
+            with persona_cols[idx % len(persona_cols)]:
+                st.metric(row["behavior_persona"], f"{row['percentage']:.1f}%", f"{int(row['count']):,} users")
+
+        st.markdown(
+            """
+            **Persona logic**  
+            - **Night Scrollers:** high bedtime screen time + night usage  
+            - **Platform Switchers:** uses many platforms  
+            - **Heavy Engagement Users:** high daily usage  
+            - **Balanced Low-Risk Users:** lower usage and no night usage  
+            """
+        )
+        chart_summaries.append("Behavior persona distribution:\n" + persona_counts.to_string(index=False))
+    else:
+        st.info("Persona cards appear for datasets with daily usage, platform count, night usage, and bedtime screen-time columns.")
+
+with creative_tab3:
+    comparison_candidates = [c for c in ["primary_platform", "country", "gender", "purpose", "addiction_level", "behavior_persona"] if c in filtered_df.columns]
+    if comparison_candidates:
+        comp_col = st.selectbox("Choose segment to compare", comparison_candidates)
+        comp_options = sorted(filtered_df[comp_col].dropna().astype(str).unique().tolist())
+        if len(comp_options) >= 2:
+            left_val = st.selectbox("Segment A", comp_options, index=0)
+            right_val = st.selectbox("Segment B", comp_options, index=1)
+            left_df = filtered_df[filtered_df[comp_col].astype(str) == left_val]
+            right_df = filtered_df[filtered_df[comp_col].astype(str) == right_val]
+            left_metrics = segment_metrics(left_df)
+            right_metrics = segment_metrics(right_df)
+
+            comparison_rows = []
+            for metric in sorted(set(left_metrics) | set(right_metrics)):
+                left_metric = left_metrics.get(metric, np.nan)
+                right_metric = right_metrics.get(metric, np.nan)
+                if pd.notna(left_metric) and pd.notna(right_metric):
+                    comparison_rows.append({
+                        "metric": metric,
+                        str(left_val): left_metric,
+                        str(right_val): right_metric,
+                        "difference": left_metric - right_metric,
+                    })
+            comparison_df = pd.DataFrame(comparison_rows)
+            st.dataframe(comparison_df.round(2), use_container_width=True)
+
+            display_df = comparison_df[comparison_df["metric"].ne("records")].melt(
+                id_vars="metric",
+                value_vars=[str(left_val), str(right_val)],
+                var_name="segment",
+                value_name="value",
+            )
+            fig = px.bar(
+                display_df,
+                x="metric",
+                y="value",
+                color="segment",
+                barmode="group",
+                title=f"Segment Comparison: {left_val} vs {right_val}",
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            chart_summaries.append(f"Segment comparison on {comp_col}: {left_val} vs {right_val}\n" + comparison_df.round(2).to_string(index=False))
+        else:
+            st.info("Need at least two segment values to compare.")
+    else:
+        st.info("Segment comparison appears when categorical columns are available.")
+
+with creative_tab4:
+    strategy_recs = build_strategy_recommendations(filtered_df)
+    rec_cols = st.columns(len(strategy_recs))
+    strategy_summary_lines = []
+    for idx, (audience, recommendation) in enumerate(strategy_recs):
+        with rec_cols[idx]:
+            st.markdown(f"### {audience}")
+            st.write(recommendation)
+        strategy_summary_lines.append(f"{audience}: {recommendation}")
+    chart_summaries.append("Rule-based strategy recommendation cards:\n" + "\n".join(strategy_summary_lines))
+
 # -----------------------------
 # EDA visual insights
 # -----------------------------
-st.subheader("3. Trend & Segment Dashboard")
+st.subheader("4. Trend & Segment Dashboard")
 st.caption("These charts generate the analysis layer that the AI report and chatbot use as context.")
 
-chart_summaries = []
+# chart_summaries already includes creative analytics outputs.
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "Behavior Trends",
@@ -542,7 +767,7 @@ with tab5:
 # -----------------------------
 # Anomaly scan
 # -----------------------------
-st.subheader("4. Anomaly & Risk Detection")
+st.subheader("5. Anomaly & Risk Detection")
 if anomaly_df.empty:
     st.success("No major z-score anomalies detected in numeric columns.")
 else:
@@ -553,6 +778,27 @@ else:
 # -----------------------------
 eda_context = make_eda_context(filtered_profile, kpi_summary, chart_summaries, anomaly_df, missing_table)
 
+
+executive_summary_md = f"""
+# AI Data-to-Insight Executive Summary
+
+## KPI Snapshot
+{kpi_summary}
+
+## Dashboard Grounding Notes
+{chr(10).join(chart_summaries[:8])}
+
+## Anomaly Summary
+{anomaly_df.to_string(index=False) if not anomaly_df.empty else 'No major z-score anomalies detected.'}
+"""
+
+st.download_button(
+    "Download Dashboard Summary (EDA Grounding)",
+    executive_summary_md,
+    file_name="dashboard_eda_summary.md",
+    mime="text/markdown",
+)
+
 with st.expander("View AI Grounding Context"):
     st.caption("This is the exact analysis layer sent to Gemini. It uses KPIs, EDA tables, chart summaries, anomaly scans, and data quality checks — not raw dataset rows.")
     st.text(eda_context[:12000])
@@ -560,7 +806,7 @@ with st.expander("View AI Grounding Context"):
 # -----------------------------
 # AI report
 # -----------------------------
-st.subheader("5. AI-Generated Executive Insight Report")
+st.subheader("6. AI-Generated Executive Insight Report")
 if st.button("Generate AI Insights", type="primary"):
     with st.spinner("Generating AI business report from EDA outputs..."):
         report = generate_ai_text(make_report_prompt(eda_context))
@@ -570,7 +816,7 @@ if st.button("Generate AI Insights", type="primary"):
 # -----------------------------
 # AI chatbot
 # -----------------------------
-st.subheader("6. Ask the AI Analyst")
+st.subheader("7. Ask the AI Analyst")
 st.caption("Ask questions about the dashboard. The chatbot is grounded in the generated KPIs, EDA summaries, charts, and anomaly scan.")
 
 example_questions = [
@@ -592,5 +838,5 @@ if st.button("Ask AI Analyst"):
 
 st.divider()
 st.caption(
-    "Built as a Data-to-Insight Agent: upload structured data → generate EDA → visualize trends → detect anomalies/risk → produce AI-grounded recommendations."
+    "Built as a Data-to-Insight Agent: upload structured data → generate EDA → visualize trends → build personas/segment comparisons → detect anomalies/risk → produce AI-grounded recommendations."
 )
