@@ -1,0 +1,6 @@
+order_id,order_date,region,product,sales,profit
+A-1001,2026-01-02,West,Laptop,1200,220
+A-1002,2026-01-03,East,Monitor,380,64
+A-1003,2026-01-04,West,Keyboard,95,24
+A-1004,2026-01-05,South,Laptop,1100,180
+A-1005,2026-01-06,North,Monitor,410,70
