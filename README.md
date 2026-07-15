@@ -2,7 +2,7 @@
 
 An AI-powered end-to-end data analysis platform that transforms raw datasets into interactive dashboards and executive-ready reports.
 
-🔗 **Live Demo:** https://YOUR-STREAMLIT-APP.streamlit.app
+🔗 **Live Demo:** [https://YOUR-STREAMLIT-APP.streamlit.app](https://data-analysis-agent-dyfrwg3dryqw7eo2ycbry6.streamlit.app/)
 
 ---
 
