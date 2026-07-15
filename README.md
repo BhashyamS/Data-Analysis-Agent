@@ -1,91 +1,240 @@
-# Analytics Copilot
+# 📊 Analytics Copilot
 
-Analytics Copilot is an end-to-end Streamlit analytics workspace that mirrors a real data analyst workflow. It transforms an uploaded CSV or Excel file into a documented cleaning process, exploratory analysis, target-driver investigation, executive dashboard, grounded AI report, and downloadable analysis package.
+An AI-powered end-to-end data analysis platform that transforms raw datasets into interactive dashboards and executive-ready reports.
 
-## Analyst workflow
+🔗 **Live Demo:** https://YOUR-STREAMLIT-APP.streamlit.app
 
-1. **Prepare** — profile the schema, diagnose quality issues, apply a reproducible cleaning recipe, and compare raw versus cleaned data.
-2. **Executive Brief** — review adaptive KPIs, automatic findings, and dataset-appropriate visual summaries.
-3. **Explore** — inspect distributions, categories, trends, correlations, and build custom charts.
-4. **Analyze** — select a numeric outcome and investigate potential numeric and categorical drivers. Results are explicitly presented as associations, not causal proof.
-5. **Quality & Outliers** — review a data-health score, column-level quality, and row-level IQR outliers.
-6. **AI Analyst** — generate a stakeholder-ready report or ask questions using grounded aggregate evidence.
-7. **Export** — download cleaned data, filtered analysis data, outlier review rows, and a JSON evidence package.
+---
 
-## Universal dataset support
+## ✨ Features
 
-The app does not require predefined column names. It detects:
+Analytics Copilot guides users through the complete data analysis workflow:
 
-- Numeric variables
-- Categorical variables
-- Date and time variables
-- Boolean variables
-- Identifiers
-- Long-text fields
+```
+Upload Data
+    ↓
+Prepare
+    ↓
+Explore
+    ↓
+Analyze
+    ↓
+AI Analyst
+    ↓
+Dashboard Studio
+    ↓
+Report Builder
+```
 
-This allows it to adapt to sales, finance, HR, marketing, operations, survey, inventory, healthcare, research, and other structured datasets.
+### 📁 Data Preparation
+- Upload CSV or Excel files
+- Automatic data profiling
+- Missing value detection
+- Duplicate detection
+- Data cleaning workflow
+- Export cleaned datasets
 
-## Cleaning capabilities
+### 📈 Exploratory Data Analysis
+- Summary statistics
+- Distribution analysis
+- Correlation analysis
+- Missing data visualization
+- Outlier detection
+- Automatic chart generation
 
-- Remove duplicate rows
-- Drop completely empty columns
-- Drop selected columns
-- Trim text whitespace
-- Standardize categorical text case
-- Fill numeric missing values using median, mean, or zero
-- Fill categorical missing values using mode or an `Unknown` label
-- Record every applied transformation in a cleaning log
-- Export the cleaned dataset
+### 🔍 Statistical Analysis
+- Correlation matrix
+- Numeric relationships
+- Feature summaries
+- Business insights
 
-## Analysis capabilities
+### 🤖 AI Analyst
+Powered by **Google Gemini**
 
-- Dataset and column profiling
-- Missing-value and duplicate analysis
-- Adaptive KPI cards
-- Automatic narrative findings
-- Histograms, box plots, bar charts, line charts, scatter plots, and correlation heatmaps
-- Date-based aggregation
-- Segment comparison
-- Target-driver analysis
-- IQR outlier detection with row-level review
-- Data-health scoring
-- Grounded Gemini reports and questions
+- Dataset explanation
+- Business insights
+- Executive summaries
+- Recommendations
+- Natural language analysis
 
-## Installation
+### 📊 Dashboard Studio
+
+Create interactive dashboards with:
+
+- KPI Cards
+- Bar Charts
+- Line Charts
+- Scatter Plots
+- Histograms
+- Pie Charts
+- Dashboard editing
+- Dashboard export
+
+### 📝 Report Builder
+
+Generate professional reports including:
+
+- Executive Summary
+- Dataset Overview
+- Data Preparation Summary
+- Exploratory Analysis
+- Statistical Analysis
+- AI Insights
+- Dashboard Summary
+- Recommendations
+- Limitations
+
+Export formats:
+
+- Markdown
+- HTML
+- PDF
+- PowerPoint
+- JSON
+
+---
+
+# 🖼 Screenshots
+
+### Upload
+
+*(Add screenshot)*
+
+### Explore
+
+*(Add screenshot)*
+
+### Dashboard Studio
+
+*(Add screenshot)*
+
+### Report Builder
+
+*(Add screenshot)*
+
+---
+
+# 🚀 Live Demo
+
+Try the application here:
+
+**https://YOUR-STREAMLIT-APP.streamlit.app**
+
+---
+
+# 🛠 Tech Stack
+
+### Frontend
+
+- Streamlit
+
+### Data Processing
+
+- Pandas
+- NumPy
+
+### Visualization
+
+- Plotly
+- Matplotlib
+
+### AI
+
+- Google Gemini API
+
+### Reporting
+
+- ReportLab
+- python-pptx
+
+### Testing
+
+- pytest
+
+---
+
+# 📂 Project Structure
+
+```
+Analytics-Copilot
+│
+├── app.py
+├── components/
+├── pages/
+├── src/
+├── sample_data/
+├── tests/
+├── .streamlit/
+├── requirements.txt
+└── README.md
+```
+
+---
+
+# ⚡ Installation
+
+Clone the repository
 
 ```bash
 git clone https://github.com/BhashyamS/Data-Analysis-Agent.git
-cd Data-Analysis-Agent
+```
+
+Install dependencies
+
+```bash
 pip install -r requirements.txt
+```
+
+Create a `.streamlit/secrets.toml` file:
+
+```toml
+GEMINI_API_KEY="YOUR_API_KEY"
+```
+
+Run the app
+
+```bash
 streamlit run app.py
 ```
 
-## Gemini setup
+---
 
-Create `.streamlit/secrets.toml`:
+# 📌 Sample Dataset
 
-```toml
-GEMINI_API_KEY = "your_api_key_here"
+Use one of the datasets in the `sample_data` folder to explore the application.
+
+---
+
+# 🧪 Testing
+
+Run all tests
+
+```bash
+pytest
 ```
 
-The application still works without Gemini; only AI report and chat features are disabled.
+---
 
-## Important analytical guardrails
+# 🎯 Future Roadmap
 
-- Statistical outliers are review candidates, not automatically data errors.
-- Correlations and group differences are associations, not proof of causation.
-- AI output is instructed to separate evidence from hypotheses and avoid inventing unsupported business meaning.
-- The exported analysis package preserves cleaning decisions and aggregated evidence for reproducibility.
+- Multi-dashboard workspaces
+- SQL database connections
+- Predictive machine learning models
+- Time-series forecasting
+- Natural language dashboard editing
+- Collaborative dashboards
+- Cloud deployment options
 
-## Tech stack
+---
 
-- Streamlit
-- Pandas
-- NumPy
-- Plotly
-- Statsmodels
-- Google Gemini API
+# 👨‍💻 Author
 
-## Author
+**Srija Bhashyam**
 
-Srija Bhashyam
+GitHub: https://github.com/BhashyamS
+
+LinkedIn: *(Add your LinkedIn profile)*
+
+---
+
+⭐ If you found this project useful, consider giving it a star!
